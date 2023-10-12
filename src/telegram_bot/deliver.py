@@ -21,8 +21,8 @@ def set_cars(user_data: Dict):
 def create_cars_keyboard(user_data: Dict, which: Literal["licence", "own"]):
     cars = user_data[which]
     words = {
-        True: "יש לי",
-        False: "אין לי"
+        True: "✅",
+        False: "❎"
     }
     buttons = [
         [

@@ -40,7 +40,6 @@ async def supply_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "done":
         del context.user_data["choosing"]
-        del context.user_data["supply"]["אחר"]
         await update.callback_query.edit_message_text(
             "לאן להביא את הציוד? (ניתן לשלוח כתובות או מיקום)"
         )
@@ -104,7 +103,8 @@ async def address_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "מתי קמים מהשבעה?\n"
         "אנא שלחו בפורמט הבא:\n"
-        "```dd/mm/yy```"
+        "```dd/mm/yy```",
+        parse_mode=ParseMode.MARKDOWN_V2
     )
     return consts.Convo.END_DATE_REQUESTER
 
@@ -173,7 +173,7 @@ async def end_date_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
                      f"כתובת: {context.user_data['location']['address']}\n"
                      f" ציוד: {context.user_data['supply']['אחר']}\n"
             )
-        del context.user_data["supply"]["אחר"]
+    del context.user_data["supply"]["אחר"]
 
     await Database().add_request(context.user_data)
     b = await algorithms.ask_supplier(context.user_data, context.bot)

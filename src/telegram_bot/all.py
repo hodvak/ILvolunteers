@@ -56,8 +56,7 @@ async def start_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def type_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     context.user_data["type"] = update.callback_query.data
-    await update.callback_query.edit_message_text("דבר ראשון נצטרך טלפון של איש/אשת קשר.\n"
-                                            "שלחו לנו את מספר הטלפון של איש הקשר (ניתן גם לשלוח כאיש קשר)")
+    await update.callback_query.edit_message_text("דבר ראשון נצטרך טלפון של איש/אשת קשר.\n")
     return consts.Convo.PHONE
 
 
