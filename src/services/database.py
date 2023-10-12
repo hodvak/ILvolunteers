@@ -8,8 +8,7 @@ import motor.motor_asyncio as motor
 from pymongo.errors import ConnectionFailure
 from user import Type, Supply, Status
 
-HOST = environ.get('MONGO_URL') or 'mongodb://localhost'
-PORT = int(environ.get('MONGO_PORT') or '27017')
+HOST = environ.get('MONGO_URL') or 'mongodb://localhost:27017'
 DATABASE_NAME = environ.get('DATABASE_NAME') or 'database'
 
 
@@ -19,7 +18,7 @@ class Database:
         connect to the database
         """
         try:
-            self.client = motor.AsyncIOMotorClient(HOST, PORT)
+            self.client = motor.AsyncIOMotorClient(HOST)
         except ConnectionFailure as e:
             print("Server not available")
             raise e
@@ -106,7 +105,8 @@ class Database:
         """
         supply_dict = {}
         for name, amount in needed_supply.items():
-            supply_dict['supply.' + name] = {'$gte': amount}
+            if name != 'אחר':
+                supply_dict['supply.' + name] = {'$gte': amount}
 
         my_filter = {'type': Type.SUPPLIER.value, **supply_dict}
         supplier = await self.db.users.find(my_filter).to_list(length=None)

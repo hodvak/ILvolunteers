@@ -40,6 +40,7 @@ async def supply_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "done":
         del context.user_data["choosing"]
+        del context.user_data["supply"]["אחר"]
         await update.callback_query.edit_message_text(
             "לאן להביא את הציוד? (ניתן לשלוח כתובות או מיקום)"
         )
