@@ -5,10 +5,11 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src import user, algorithms
-from src.services.database import Database
-from src.services import gmap
-from src.telegram_bot import consts
+import algorithms
+import user
+from services import gmap
+from services.database import Database
+from telegram_bot import consts
 
 SUPPLY_TEXT = "הנה רשימת הציוד העיקרי שיש לנו, יש ללחוץ על הכפתור הרלוונטי ואז תפתח לך אפשרות להוסיף כמות"
 

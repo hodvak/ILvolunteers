@@ -2,9 +2,9 @@ from typing import Optional, Tuple
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from src import user
-from src.telegram_bot import supplier, requester, consts
-from src.user import Type
+import user
+from telegram_bot import supplier, requester, consts
+from user import Type
 
 
 def _validate_phone(phone: str) -> Optional[str]:

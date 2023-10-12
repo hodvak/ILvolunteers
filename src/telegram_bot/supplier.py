@@ -2,10 +2,11 @@ from typing import Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from src import user, algorithms
-from src.services.database import Database
-from src.services import gmap
-from src.telegram_bot import consts
+import user
+import algorithms
+from services.database import Database
+from services import gmap
+from telegram_bot import consts
 
 SUPPLY_TEXT = "הנה רשימת הציוד העיקרי הדרוש לנו, יש ללחוץ על הכפתור הרלוונטי ואז תפתח לך אפשרות להוסיף כמות?"
 

@@ -9,8 +9,8 @@ from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMar
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler, \
     CallbackQueryHandler
 
-from src.user import Type, Supply
-from src.telegram_bot import consts, all, supplier, deliver, requester
+from user import Type, Supply
+from telegram_bot import consts, all, supplier, deliver, requester
 
 TOKEN = os.environ.get("TOKEN")
 

@@ -3,10 +3,10 @@ from typing import Dict, Literal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src import user
-from src.services.database import Database
-from src.services import gmap
-from src.telegram_bot import consts
+import user
+from services.database import Database
+from services import gmap
+from telegram_bot import consts
 
 
 def set_cars(user_data: Dict):

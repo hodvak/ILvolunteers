@@ -6,7 +6,7 @@ from typing import Optional, AsyncIterable, List, Dict
 
 import motor.motor_asyncio as motor
 from pymongo.errors import ConnectionFailure
-from src.user import Type, Supply, Status
+from user import Type, Supply, Status
 
 HOST = environ.get('MONGO_URL') or 'mongodb://localhost'
 PORT = int(environ.get('MONGO_PORT') or '27017')

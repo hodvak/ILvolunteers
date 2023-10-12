@@ -1,7 +1,7 @@
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
-from src.services import gmap
-from src.services.database import Database
+from services import gmap
+from services.database import Database
 
 
 async def find_suppliers(user_data, not_good=()):
