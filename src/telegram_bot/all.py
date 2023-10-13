@@ -24,10 +24,9 @@ async def start_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start the conversation, and save the user data
     next step is to choose the type of the user
     """
-    # send a message to user with chat id 400000
-    context.bot
 
     context.user_data.clear()
+    print(context.user_data)
     context.user_data["telegram_data"] = {
         "chat_id": update.message.chat_id,
         "username": update.message.from_user.username,

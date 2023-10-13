@@ -1,3 +1,5 @@
+from typing import Dict
+
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 from services import gmap
@@ -38,25 +40,25 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("יש לי את הציוד ואני יכול להביא",
-                                     callback_data=f"sd_yy_{user_data['telegram_data']['chat_id']}")
+                                     callback_data=f"sd_yy_{user_data['_id']}")
             ],
             [
                 InlineKeyboardButton("יש לי את הציוד אבל צריך שמישהו יביא",
-                                     callback_data=f"sd_yn_{user_data['telegram_data']['chat_id']}")
+                                     callback_data=f"sd_yn_{user_data['_id']}")
             ],
             [
                 InlineKeyboardButton("אין לי את הציוד",
-                                     callback_data=f"sd_nn_{user_data['telegram_data']['chat_id']}")
+                                     callback_data=f"sd_nn_{user_data['_id']}")
             ]
         ])
         normal_data = '\n'.join([f"{k}: {v}" for k, v in user_data['supply'].items()])
 
         message = await bot.send_message(sup[0]['telegram_data']['chat_id'],
-                                         f"האם תוכל להביא את הציוד הבא לכתובת {user_data['location']['address']} אשר נמצאת {sup[1]} ק\"מ ממך?\n"
+                                         f"האם תוכל להביא את הציוד הבא לכתובת {user_data['location']['address']} אשר נמצאת {sup[1]:.2f} ק\"מ ממך?\n"
                                          f"{normal_data}",
                                          reply_markup=keyboard)
 
-        await Database().send_supplier_message(user_data['telegram_data']['chat_id'],
+        await Database().send_supplier_message(user_data['_id'],
                                                sup[0]['telegram_data']['chat_id'],
                                                message.message_id)
         return True
@@ -75,7 +77,7 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
                                          f"האם יש לך את הציוד הבא?\n"
                                          f"{normal_data}",
                                          reply_markup=keyboard)
-        await Database().send_supplier_message(user_data['telegram_data']['chat_id'],
+        await Database().send_supplier_message(user_data['_id'],
                                                sup[0]['telegram_data']['chat_id'],
                                                message.message_id)
         return True
@@ -83,22 +85,49 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
         return False
 
 
-async def ask_delivers(req, bot):
+async def ask_delivers(req: Dict, bot: Bot) -> bool:
     volunteers = await find_volunteers(req)
+    volunteers_chat_ids = [v[0]['telegram_data']['chat_id'] for v in volunteers]
+    messages_ids = []
+    if not volunteers:
+        return False
     for v in volunteers:
         keyboard = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("אני יכול להביא", callback_data=f"d_y_{req['telegram_data']['chat_id']}")
+                InlineKeyboardButton("אני יכול להביא", callback_data=f"d_y_{req['_id']}")
             ]
         ])
         message = await bot.send_message(v[0]['telegram_data']['chat_id'],
-                                         f"האם תוכל להביא את הציוד לכתובת {req['location']['address']} אשר נמצאת {v[1]} ק\"מ ממך?",
+                                         f"האם תוכל להביא את הציוד לכתובת {req['location']['address']} אשר נמצאת"
+                                         f" {v[1]:.2f} ק\"מ ממך?",
                                          reply_markup=keyboard)
+        messages_ids.append(message.message_id)
 
-        await Database().send_delivery_message(req['telegram_data']['chat_id'],
-                                               v[0]['telegram_data']['chat_id'],
-                                               message.message_id)
+    await Database().send_delivery_message(req['_id'],
+                                           volunteers_chat_ids,
+                                           messages_ids)
+    return True
 
 
-def ask_volunteers(req, bot):
-    pass
+async def ask_volunteers(req, bot):
+    volunteers = await find_volunteers(req)
+    volunteers_chat_ids = [v[0]['telegram_data']['chat_id'] for v in volunteers]
+    messages_ids = []
+    if not volunteers:
+        return False
+    for v in volunteers:
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("אני יכול לעזור", callback_data=f"v_y_{req['_id']}")
+            ]
+        ])
+        message = await bot.send_message(v[0]['telegram_data']['chat_id'],
+                                         f"תוכל להקים את הציוד בכתובת {req['location']['address']} אשר נמצאת"
+                                         f" {v[1]:.2f} ק\"מ ממך?",
+                                         reply_markup=keyboard)
+        messages_ids.append(message.message_id)
+
+    await Database().send_helpe_message(req['_id'],
+                                        volunteers_chat_ids,
+                                        messages_ids)
+    return True

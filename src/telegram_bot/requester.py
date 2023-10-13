@@ -175,12 +175,10 @@ async def end_date_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
     del context.user_data["supply"]["אחר"]
 
-    await Database().add_request(context.user_data)
+    req_id = await Database().add_request(context.user_data)
+    context.user_data["_id"] = req_id
     b = await algorithms.ask_supplier(context.user_data, context.bot)
     if not b:
-        await update.message.reply_text(
-            "לא הצלחנו למצוא ספקים, נחזור אליכם בהקדם עם מענה אנושי"
-        )
         for admin in consts.ADMINS:
             await context.bot.sendMessage(
                 chat_id=admin,

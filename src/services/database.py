@@ -5,6 +5,7 @@ from pprint import pprint
 from typing import Optional, AsyncIterable, List, Dict
 
 import motor.motor_asyncio as motor
+from bson import ObjectId
 from pymongo.errors import ConnectionFailure
 from user import Type, Supply, Status
 
@@ -32,14 +33,18 @@ class Database:
         """
         print(user_data)
         # check if exists by the user_data['telegram_data.chat_id']['chat_id']
-        user = await self.db.users.find_one({'telegram_data.chat_id': user_data['telegram_data']['chat_id']})
-        if user:
-            await self.db.users.update_one({'telegram_data.chat_id': user_data['telegram_data']['chat_id']},
-                                           {'$set': user_data})
-        else:
-            await self.db.users.insert_one(user_data)
+        # user = await self.db.users.find_one({'telegram_data.chat_id': user_data['telegram_data']['chat_id']})
+        # if user:
+        #     await self.db.users.update_one({'telegram_data.chat_id': user_data['telegram_data']['chat_id']},
+        #                                    user_data)
+        # else:
+        #     await self.db.users.insert_one(user_data)
 
-    async def add_request(self, user_data):
+        # delete the user if exists and insert the new one
+        await self.db.users.delete_many({'telegram_data.chat_id': user_data['telegram_data']['chat_id']})
+        await self.db.users.insert_one(user_data)
+
+    async def add_request(self, user_data) -> ObjectId:
         user_data['time'] = datetime.now(timezone.utc)
 
         user_data['supplier'] = None
@@ -51,21 +56,37 @@ class Database:
         user_data['helper_messages'] = []
 
         user_data['status'] = Status.PENDING_SUPPLIER
-        return await self.db.requests.insert_one(user_data)
+        ans = await self.db.requests.insert_one(user_data)
+        return ans.inserted_id
 
-    async def send_supplier_message(self, request_chat_id, supplier_chat_id, message_id):
-        await self.db.requests.update_one({'telegram_data.chat_id': request_chat_id},
+    async def send_supplier_message(self, request_id: ObjectId, supplier_chat_id: int, message_id: int) -> None:
+        await self.db.requests.update_one({'_id': request_id},
                                           {'$push': {'supplier_messages': {'chat_id': supplier_chat_id,
                                                                            'message_id': message_id}}})
 
-    async def set_supplier(self, request_chat_id, supplier_chat_id):
-        request_chat_id = int(request_chat_id)
+    async def send_delivery_message(self, req_id: ObjectId, delivery_chat_ids: List[int],
+                                    message_ids: List[int]) -> None:
+        data = [{'chat_id': chat_id, 'message_id': message_id} for chat_id, message_id in
+                zip(delivery_chat_ids, message_ids)]
+
+        await self.db.requests.update_one({'_id': req_id},
+                                          {'$set': {'delivery_messages': data}})
+
+    async def send_helpe_message(self, req_id, volunteers_chat_ids, messages_ids):
+        data = [{'chat_id': chat_id, 'message_id': message_id} for chat_id, message_id in
+                zip(volunteers_chat_ids, messages_ids)]
+
+        await self.db.requests.update_one({'_id': req_id},
+                                          {'$set': {'helper_messages': data}})
+
+    async def set_supplier(self, request_id: ObjectId, supplier_chat_id: int) -> None:
         await self.db.requests.update_one(
-            {'telegram_data.chat_id': request_chat_id, 'status': Status.PENDING_SUPPLIER.value},
+            {'_id': request_id, 'status': Status.PENDING_SUPPLIER.value},
             {'$set': {'supplier': supplier_chat_id, 'status': Status.PENDING_DELIVER.value}})
 
-        request = await self.db.requests.find_one({'telegram_data.chat_id': request_chat_id})
+        request = await self.db.requests.find_one({'_id': request_id})
         supply_dict = {}
+        print(request['supply'])
         for name, amount in request['supply'].items():
             if name != 'אחר':
                 supply_dict['supply.' + name] = -amount
@@ -75,9 +96,9 @@ class Database:
 
         print("hey")
 
-    async def set_delivery(self, request_chat_id, delivery_chat_id):
+    async def set_delivery(self, request_id: ObjectId, delivery_chat_id: int) -> None:
         await self.db.requests.update_one(
-            {'telegram_data.chat_id': request_chat_id, 'status': Status.PENDING_DELIVER.value},
+            {'_id': request_id, 'status': Status.PENDING_DELIVER.value},
             {'$set': {'delivery': delivery_chat_id, 'status': Status.PENDING_VOLUNTEER.value}})
 
     async def set_helper(self, request_chat_id, helper_chat_id):
@@ -85,17 +106,19 @@ class Database:
             {'telegram_data.chat_id': request_chat_id, 'status': Status.PENDING_VOLUNTEER.value},
             {'$set': {'helper': helper_chat_id, 'status': Status.IN_PROGRESS.value}})
 
-    async def set_done_requests(self, request_chat_id):
-        await self.db.requests.update_one(
-            {'telegram_data.chat_id': request_chat_id, 'status': Status.IN_PROGRESS.value},
-            {'$set': {'status': Status.DONE.value}})
-        req = await self.db.requests.find_one({'telegram_data.chat_id': request_chat_id})
-        supply_dict = {}
-        for name, amount in req['supply'].items():
-            supply_dict['supply.' + name] = amount
 
-        await self.db.user.update_one({'telegram_data.chat_id': req['supplier']},
-                                      {'$inc': supply_dict})
+
+    # async def set_done_requests(self, request_chat_id):
+    #     await self.db.requests.update_one(
+    #         {'telegram_data.chat_id': request_chat_id, 'status': Status.IN_PROGRESS.value},
+    #         {'$set': {'status': Status.DONE.value}})
+    #     req = await self.db.requests.find_one({'telegram_data.chat_id': request_chat_id})
+    #     supply_dict = {}
+    #     for name, amount in req['supply'].items():
+    #         supply_dict['supply.' + name] = amount
+    #
+    #     await self.db.user.update_one({'telegram_data.chat_id': req['supplier']},
+    #                                   {'$inc': supply_dict})
 
     async def get_supplier(self, needed_supply: Dict[Supply, int]):
         """
@@ -115,13 +138,8 @@ class Database:
     async def get_delivery(self):
         return await self.db.users.find({'type': Type.DELIVER.value}).to_list(length=None)
 
-    async def get_request(self, request_chat_id):
-        return await self.db.requests.find_one({'telegram_data.chat_id': request_chat_id})
-
-    async def send_delivery_message(self, request_chat_id, delivery_chat_id, message_id):
-        await self.db.requests.update_one({'telegram_data.chat_id': request_chat_id},
-                                          {'$push': {'delivery_messages': {'chat_id': delivery_chat_id,
-                                                                           'message_id': message_id}}})
+    async def get_request(self, request_id: ObjectId):
+        return await self.db.requests.find_one({'_id': request_id})
 
     async def set_volunteer(self, request_chat_id, volunteer_chat_id):
         await self.db.requests.update_one(

@@ -1,5 +1,6 @@
 from typing import Dict
 
+from bson import ObjectId
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import user
@@ -111,15 +112,17 @@ async def supplier_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     data = update.callback_query.data
     data = data.split("_")
-    req = await Database().get_request(int(data[2]))
+    req_id = ObjectId(data[2])
+    req = await Database().get_request(req_id)
     if data[1] == 'yy':
-        await Database().set_supplier(data[2], update.callback_query.from_user.id)
-        await Database().set_delivery(data[2], update.callback_query.from_user.id)
+        await Database().set_supplier(req_id, update.callback_query.from_user.id)
+        await Database().set_delivery(req_id, update.callback_query.from_user.id)
         data = '\n'.join([f"{key} : {value}" for key, value in req["supply"].items()])
         await update.callback_query.edit_message_text(
             f"תודה שהבאת לנו את הציוד הבא גם תיקח אותו לכתובת {req['location']['address']}:\n{data}\n"
             f"נשלח לך הודעה ברגע שנדע שבאים המתנדבים לקחת ממך את הציוד\n"
         )
+        # todo: delete this and send message only to admin
         await context.bot.send_message(
             chat_id=req['telegram_data']['chat_id'],
             text="מצאנו ספק לציוד שגם ישלח אותו אליכם הביתה, אחנו מחפשים מתנדבים שיעזרו להקים את הדברים"
@@ -127,12 +130,13 @@ async def supplier_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await algorithms.ask_volunteers(req, context.bot)
         return ConversationHandler.END
     elif data[1][0] == 'y':
-        await Database().set_supplier(data[2], update.callback_query.from_user.id)
+        await Database().set_supplier(req_id, update.callback_query.from_user.id)
         data = '\n'.join([f"{key} : {value}" for key, value in req["supply"].items()])
         await update.callback_query.edit_message_text(
             f"תודה שהבאת לנו את הציוד הבא:\n{data}\n"
             f"נשלח לך הודעה ברגע שנדע שבאים המתנדבים לקחת ממך את הציוד\n"
         )
+        # todo: delete this and send message only to admin
         await context.bot.send_message(
             chat_id=req['telegram_data']['chat_id'],
             text="מצאנו ספק לציוד, אחנו מחפשים מתנדבים שיביאו את הציוד לכתובת שציינתם"
@@ -143,6 +147,7 @@ async def supplier_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
         not_good = tuple(a['chat_id'] for a in req['supplier_messages'])
         b = await algorithms.ask_supplier(req, context.bot, not_good)
         if not b:
+            # todo: delete this and send message only to admin and move it to algorithms.py
             await context.bot.send_message(
                 chat_id=req['telegram_data']['chat_id'],
                 text="לא הצלחנו למצוא ספק לציוד שביקשת, מענה אנושי כבר יפנה אליכם"
@@ -151,11 +156,11 @@ async def supplier_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=admin,
                     text=f"לא מצאנו ציוד לבקשה"
+                         f"ID: {req['_id']}\n"
                          f"שם: {req['name']}\n"
                          f"טלפון: {req['phone']}\n"
                          f"כתובת: {req['location']['address']}\n"
                          f"ציוד: {req['supply']}\n"
                 )
-
 
         return ConversationHandler.END
