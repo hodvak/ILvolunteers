@@ -94,7 +94,6 @@ class Database:
         await self.db.user.update_one({'telegram_data.chat_id': supplier_chat_id},
                                       {'$inc': supply_dict})
 
-        print("hey")
 
     async def set_delivery(self, request_id: ObjectId, delivery_chat_id: int) -> None:
         await self.db.requests.update_one(

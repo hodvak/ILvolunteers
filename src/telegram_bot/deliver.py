@@ -138,34 +138,10 @@ async def deliver_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     res_id = ObjectId(query.data.split('_')[2])
     req = await Database().get_request(res_id)
-    await Database().set_delivery(res_id, update.callback_query.message.chat_id)
-    # deliver = await Database().get_user(update.callback_query.message.chat_id)
-    supplier = await Database().get_user(req['supplier'])
-    for data in req['delivery_messages']:
-        await context.bot.edit_message_text(
-            chat_id=data['chat_id'],
-            message_id=data['message_id'],
-            text=f"מישהו אישר שהוא יקח את הציוד!\n"
-                 f"תודה רבה לכולם"
-        )
-    # await query.message.edit_reply_markup(reply_markup=None)
-    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in req['supply'].items()])
-    await query.message.reply_text(
-        f"תודה רבה שהתנדבת לקחת את הציוד!\n"
-        f"הציוד\n:"
-        f"{supply_as_text}\n"
-        f"מהמקום:\n"
-        f"{supplier['location']['address']}\n"
-        f"למקום:\n"
-        f"{req['location']['address']}\n"
-        f"תוכל ליצור איתנו קשר לעוד פרטים - @hodvak\n"
-    )
-
-    await context.bot.send_message(
-        chat_id=req['telegram_data']['chat_id'],
-        text=f"מישהו אישר שהוא יקח את הציוד!\n"
-    )
-    await algorithms.ask_volunteers(req, context.bot)
+    await algorithms.accept_delivery(req,
+                                     update.callback_query.message.chat_id,
+                                     update.callback_query.message.message_id,
+                                     context.bot)
 
 
 async def volunteer_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,22 +149,7 @@ async def volunteer_res(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     res_id = ObjectId(query.data.split('_')[2])
     req = await Database().get_request(res_id)
-    await Database().set_volunteer(res_id, update.callback_query.message.chat_id)
-    for data in req['helper_messages']:
-        await context.bot.edit_message_text(
-            chat_id=data['chat_id'],
-            message_id=data['message_id'],
-            text=f"מישהו אישר שהוא יעזור לסדר את הציוד!\n"
-        )
-    await query.message.reply_text(
-        f"תודה רבה שהתנדבת לסדר את הציוד במיקום: {req['location']['address']}\n"
-    )
-    await context.bot.sendLocation(
-        chat_id=update.callback_query.message.chat_id,
-        latitude=req['location']['point'][0],
-        longitude=req['location']['point'][1]
-    )
-    await context.bot.send_message(
-        chat_id=req['telegram_data']['chat_id'],
-        text=f"מישהו אישר שהוא יעזור לסדר את הציוד!\n"
-    )
+    await algorithms.accept_volunteer(req,
+                                      update.callback_query.message.chat_id,
+                                      update.callback_query.message.message_id,
+                                      context.bot)

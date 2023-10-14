@@ -177,6 +177,7 @@ async def end_date_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     req_id = await Database().add_request(context.user_data)
     context.user_data["_id"] = req_id
+    supply_as_text = "\n".join([f"{key} : {value}" for key, value in context.user_data["supply"].items() if value != 0])
     b = await algorithms.ask_supplier(context.user_data, context.bot)
     if not b:
         for admin in consts.ADMINS:
@@ -186,6 +187,6 @@ async def end_date_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
                      f"שם: {context.user_data['name']}\n"
                      f"טלפון: {context.user_data['phone']}\n"
                      f"כתובת: {context.user_data['location']['address']}\n"
-                     f" ציוד: {context.user_data['supply']}\n"
+                     f" ציוד\n: {supply_as_text}\n"
             )
     return ConversationHandler.END

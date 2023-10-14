@@ -26,7 +26,6 @@ async def start_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
 
     context.user_data.clear()
-    print(context.user_data)
     context.user_data["telegram_data"] = {
         "chat_id": update.message.chat_id,
         "username": update.message.from_user.username,
