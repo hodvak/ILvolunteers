@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -52,7 +53,7 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
                                      callback_data=f"sd_nn_{user_data['_id']}")
             ]
         ])
-        normal_data = '\n'.join(f"{k}: {v}" for k, v in user_data['supply'].items()if v != 0)
+        normal_data = '\n'.join(f"{k}: {v}" for k, v in user_data['supply'].items() if v != 0)
 
         message = await bot.send_message(sup[0]['telegram_data']['chat_id'],
                                          f"האם תוכל להביא את הציוד הבא לכתובת {user_data['location']['address']} אשר נמצאת {sup[1]:.2f} ק\"מ ממך?\n"
@@ -310,3 +311,11 @@ async def accept_volunteer(req: Dict, volunteer_chat_id: int, message_id: int, b
         chat_id=req['telegram_data']['chat_id'],
         text=f"מישהו אישר שהוא יעזור לסדר את הציוד!\n"
     )
+
+
+async def send_to_admins(message: str, bot: Bot):
+    messages_to_wait = [bot.send_message(
+        chat_id=admin,
+        text=message
+    ) for admin in consts.ADMINS]
+    await asyncio.gather(*messages_to_wait)

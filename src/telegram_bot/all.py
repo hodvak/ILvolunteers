@@ -46,7 +46,7 @@ async def start_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text("במקרה שמשהו ושתבש ניתן לכתוב שוב /START או לפנות ל @hodvak")
     await update.message.reply_text("היי, אנחנו מוקד תמיכה במשפחות הנופלים ואנחנו כאן לעזור להם לעבור את ימי השבעה.",
-                              reply_markup=InlineKeyboardMarkup(buttons))
+                                    reply_markup=InlineKeyboardMarkup(buttons))
 
     return consts.Convo.TYPE
 
@@ -76,9 +76,9 @@ async def phone_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def name_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # todo: validate name
-    if ' ' not in update.message.text:
-        await update.message.reply_text("אנא הזן שם מלא בעברית")
-        return consts.Convo.NAME
+    # if ' ' not in update.message.text:
+    #     await update.message.reply_text("אנא הזן שם מלא בעברית")
+    #     return consts.Convo.NAME
 
     context.user_data["name"] = update.message.text
     # ADDRESS #
