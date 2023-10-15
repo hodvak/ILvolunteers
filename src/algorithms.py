@@ -37,6 +37,8 @@ async def find_volunteers(user_data):
 
 async def ask_supplier(user_data, bot: Bot, not_good=()):
     best_supp, good_supp = await find_suppliers(user_data, not_good)
+    normal_data = '\n'.join(f"{k}: {v}" for k, v in user_data['supply'].items() if v != 0)
+
     if best_supp:
         sup = best_supp[0]
         keyboard = InlineKeyboardMarkup([
@@ -53,7 +55,6 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
                                      callback_data=f"sd_nn_{user_data['_id']}")
             ]
         ])
-        normal_data = '\n'.join(f"{k}: {v}" for k, v in user_data['supply'].items() if v != 0)
 
         message = await bot.send_message(sup[0]['telegram_data']['chat_id'],
                                          f"האם תוכל להביא את הציוד הבא לכתובת {user_data['location']['address']} אשר נמצאת {sup[1]:.2f} ק\"מ ממך?\n"
@@ -74,7 +75,6 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
                 InlineKeyboardButton("אין לי את הציוד", callback_data=f"s_n_{user_data['telegram_data']['chat_id']}")
             ]
         ])
-        normal_data = '\n'.join([f"{k}: {v}" for k, v in user_data['supply'].items()])
         message = await bot.send_message(sup[0]['telegram_data']['chat_id'],
                                          f"האם יש לך את הציוד הבא?\n"
                                          f"{normal_data}",
@@ -84,7 +84,16 @@ async def ask_supplier(user_data, bot: Bot, not_good=()):
                                                message.message_id)
         return True
     else:
-        return False
+        await send_to_admins(
+            "לא מצאנו ספקים לבקשה הזאת"
+            f"id: {user_data['_id']}\n"
+            f"name: {user_data['name']}\n"
+            f"phone: {user_data['phone']}\n"
+            f"location: {user_data['location']['address']}\n"
+            f"supply: \n{normal_data}",
+            bot
+        )
+        return True
 
 
 async def ask_delivers(req: Dict, bot: Bot) -> bool:
@@ -95,7 +104,16 @@ async def ask_delivers(req: Dict, bot: Bot) -> bool:
     supply_as_text = '\n'.join(f"{key}: {value}" for key, value in req['supply'].items() if value != 0)
 
     if not volunteers:
-        return False
+        await send_to_admins(
+            "לא מצאנו שליחם לבקשה הזאת"
+            f"id: {req['_id']}\n"
+            f"name: {req['name']}\n"
+            f"phone: {req['phone']}\n"
+            f"location: {req['location']['address']}\n"
+            f"supply: \n{supply_as_text}",
+            bot
+        )
+
     for v in volunteers:
         keyboard = InlineKeyboardMarkup([
             [
@@ -104,7 +122,7 @@ async def ask_delivers(req: Dict, bot: Bot) -> bool:
         ])
         supplier_distance = gmap.get_distance(v[0]['location']['point'], req['location']['point'])
         message = await bot.send_message(v[0]['telegram_data']['chat_id'],
-                                         f"תוכל להביא את הציוד מ{supplier['location']['address']} אשר נמצאת"
+                                         f"שלום, תוכל להביא את הציוד מ{supplier['location']['address']} אשר נמצאת"
                                          f" {supplier_distance:.2f} ק\"מ ממך ל{req['location']['address']} אשר נמצאת"
                                          f" {v[1]:.2f} ק\"מ ממך? הציוד:\n"
                                          f"{supply_as_text}"
@@ -118,6 +136,7 @@ async def ask_delivers(req: Dict, bot: Bot) -> bool:
     return True
 
 
+# todo: 2
 async def ask_volunteers(req, bot):
     volunteers = await find_volunteers(req)
     volunteers_chat_ids = [v[0]['telegram_data']['chat_id'] for v in volunteers]
@@ -127,12 +146,15 @@ async def ask_volunteers(req, bot):
     for v in volunteers:
         keyboard = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("אני יכול לעזור", callback_data=f"v_y_{req['_id']}")
+                InlineKeyboardButton("אוכל להגיע", callback_data=f"v_y_{req['_id']}")
             ]
         ])
+        normal_data = '\n'.join(f"{k}: {v}" for k, v in req['supply'].items() if v != 0)
         message = await bot.send_message(v[0]['telegram_data']['chat_id'],
-                                         f"תוכל להקים את הציוד בכתובת {req['location']['address']} אשר נמצאת"
-                                         f" {v[1]:.2f} ק\"מ ממך?",
+                                         f"שלום, האם תוכל להקים את הציוד בכתובת {req['location']['address']} אשר נמצאת"
+                                         f" {v[1]:.2f} ק\"מ ממך?\n"
+                                         f"הציוד:"
+                                         f"{normal_data}",
                                          reply_markup=keyboard)
         messages_ids.append(message.message_id)
 
@@ -223,7 +245,7 @@ async def accept_supplier_delivery(req: Dict, supplier_chat_id: int, message_id:
         for admin in consts.ADMINS:
             await bot.send_message(
                 chat_id=admin,
-                text=f"לא מצאנו שליחים לבקשה"
+                text=f"לא מצאנו עוזרים לבקשה"
                      f"id: {req['_id']}"
                      f"name: {req['name']}"
                      f"phone: {req['phone']}"
@@ -245,13 +267,17 @@ async def accept_delivery(req: Dict, delivery_chat_id: int, message_id: int, bot
     supply_as_text = '\n'.join([f"{key}: {value}" for key, value in req['supply'].items() if value != 0])
     await bot.send_message(
         chat_id=delivery_chat_id,
-        text=f"תודה שהתנדבת לקחת את הציוד הבא:\n{supply_as_text}\n"
-             f"מהמקום:\n"
+        text=f"שלום, תודה שהתנדבת לקחת את הציוד הבא:\n{supply_as_text}\n"
+             f"מהכתובת:\n"
              f"{supplier['location']['address']}\n"
+             f"שם איש קשר:\n"
+             f"{supplier['name']}\n"
              f"טלפון:\n"
              f"{supplier['phone']}\n"
-             f"למקום:\n"
+             f"לכתבובת:\n"
              f"{req['location']['address']}\n"
+             f"שם איש קשר:\n"
+             f"{req['name']}\n"
              f"טלפון:\n"
              f"{req['phone']}\n"
              f"תוכל ליצור איתנו קשר לעוד פרטים - @hodvak\n"
@@ -268,37 +294,36 @@ async def accept_delivery(req: Dict, delivery_chat_id: int, message_id: int, bot
     )
 
     # send message to the supplier with the data
-    await bot.send_message(
-        chat_id=supplier['telegram_data']['chat_id'],
-        text=f"מישהו אישר שהוא יקח את הציוד!\n"
-    )
+    # await bot.send_message(
+    #     chat_id=supplier['telegram_data']['chat_id'],
+    #     text=f"מישהו אישר שהוא יקח את הציוד!\n"
+    # )
 
-    b = await ask_volunteers(req, bot)
-    if not b:
-        for admin in consts.ADMINS:
-            await bot.send_message(
-                chat_id=admin,
-                text=f"לא מצאנו מתנדבים לבקשה"
-                     f"id: {req['_id']}"
-                     f"name: {req['name']}"
-                     f"phone: {req['phone']}"
-                     f"location: {req['location']['address']}"
-                     f"supply: \n{supply_as_text}"
-            )
+    await ask_volunteers(req, bot)
 
 
 async def accept_volunteer(req: Dict, volunteer_chat_id: int, message_id: int, bot: Bot):
     # set the delivery of the request
-    await Database().set_helper(req['_id'], volunteer_chat_id)
+    helpers = await Database().set_helper(req['_id'], volunteer_chat_id)
+    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in req['supply'].items() if value != 0])
 
-    # delete the message for all the optional deliveries
-    for data in req['helper_messages']:
-        await bot.delete_message(data['chat_id'], data['message_id'])
+    if len(helpers) == 2:
+        # enough helpers
+        for data in req['helper_messages']:
+            if data['chat_id'] not in helpers:
+                await bot.delete_message(data['chat_id'], data['message_id'])
 
-    # send message to the delivery with the data
-    await bot.send_message(
+    await bot.edit_message_text(
         chat_id=volunteer_chat_id,
-        text=f"תודה שהתנדבת לסדר את הציוד במיקום: {req['location']['address']}\n"
+        message_id=message_id,
+        text="שלום, תודה שהתנדבת לעזור להקים את הציוד הבא:\n"
+             f"{supply_as_text}\n"
+             f"בכתובת:\n"
+             f"{req['location']['address']}\n"
+             f"שם איש קשר:\n"
+             f"{req['name']}\n"
+             f"טלפון:\n"
+             f"{req['phone']}\n"
     )
     await bot.send_location(
         chat_id=volunteer_chat_id,
@@ -306,11 +331,27 @@ async def accept_volunteer(req: Dict, volunteer_chat_id: int, message_id: int, b
         longitude=req['location']['point'][1]
     )
 
-    # send message to the supplier with the data
-    await bot.send_message(
-        chat_id=req['telegram_data']['chat_id'],
-        text=f"מישהו אישר שהוא יעזור לסדר את הציוד!\n"
-    )
+    # supplier, delivery, helpers = await asyncio.gather(
+    #     Database().get_user(req['supplier']),
+    #     Database().get_user(req['delivery']),
+    #     Database().get_user(req['helpers'][0]),
+    #     Database().get_user(volunteer_chat_id)
+    # )
+    # await send_to_admins(
+    #     "הבקשה הזאת הסתיימה!\n"
+    #     f" id: {req['_id']}\n"
+    #     f"שם: {req['name']}\n"
+    #     f"טלפון: {req['phone']}\n"
+    #     f"כתובת: {req['location']['address']}\n"
+    #     f"ציוד: \n{supply_as_text}\n"
+    #     f"ספק: {supplier['name']}\n"
+    #     f"טלפון: {supplier['phone']}\n"
+    #     f"משלוח: {delivery['name']}\n"
+    #     f"טלפון: {delivery['phone']}\n"
+    #     f"מתנדב: {helper['name']}\n"
+    #     f"טלפון: {helper['phone']}\n",
+    #     bot
+    # )
 
 
 async def send_to_admins(message: str, bot: Bot):

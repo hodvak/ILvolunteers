@@ -49,7 +49,7 @@ class Database:
 
         user_data['supplier'] = None
         user_data['delivery'] = None
-        user_data['helper'] = None
+        user_data['helper'] = []
 
         user_data['supplier_messages'] = []
         user_data['delivery_messages'] = []
@@ -94,18 +94,20 @@ class Database:
         await self.db.user.update_one({'telegram_data.chat_id': supplier_chat_id},
                                       {'$inc': supply_dict})
 
-
     async def set_delivery(self, request_id: ObjectId, delivery_chat_id: int) -> None:
         await self.db.requests.update_one(
             {'_id': request_id, 'status': Status.PENDING_DELIVER.value},
             {'$set': {'delivery': delivery_chat_id, 'status': Status.PENDING_VOLUNTEER.value}})
 
-    async def set_helper(self, request_chat_id, helper_chat_id):
-        await self.db.requests.update_one(
-            {'telegram_data.chat_id': request_chat_id, 'status': Status.PENDING_VOLUNTEER.value},
-            {'$set': {'helper': helper_chat_id, 'status': Status.IN_PROGRESS.value}})
-
-
+    async def set_helper(self, request_id: ObjectId, helper_chat_id: int):
+        req = await self.db.requests.find_one({'_id': request_id})
+        if helper_chat_id in req['helper']:
+            return
+        req['helper'].append(helper_chat_id)
+        if len(req['helper']) == 2:
+            req['status'] = Status.IN_PROGRESS.value
+        await self.db.requests.update_one({'_id': request_id}, {'$set': req})
+        return req['helper']
 
     # async def set_done_requests(self, request_chat_id):
     #     await self.db.requests.update_one(
