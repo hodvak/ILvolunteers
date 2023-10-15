@@ -38,12 +38,10 @@ class Convo(Enum):
     DEFAULT = auto()
 
 
-ADMINS = [
-    504881827,
-    # 2096964474
-]
-# todo: add this instead of the above
-# ADMINS = []
-# with open("admin.txt", "r") as f:
-#     for line in f:
-#         ADMINS.append(int(line.strip()))
+ADMINS = []
+with open("admins.txt", "r") as f:
+    for line in f:
+        line = line.strip()
+        if line[0] == "#":
+            continue
+        ADMINS.append(int(line.strip()))
