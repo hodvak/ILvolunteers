@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict
+from typing import Dict, Any, List
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -136,7 +136,6 @@ async def ask_delivers(req: Dict, bot: Bot) -> bool:
     return True
 
 
-# todo: 2
 async def ask_volunteers(req, bot):
     volunteers = await find_volunteers(req)
     volunteers_chat_ids = [v[0]['telegram_data']['chat_id'] for v in volunteers]
@@ -354,9 +353,163 @@ async def accept_volunteer(req: Dict, volunteer_chat_id: int, message_id: int, b
     # )
 
 
-async def send_to_admins(message: str, bot: Bot):
+async def send_to_admins(message: str, bot: Bot, keyboard: InlineKeyboardMarkup = None) -> List[int]:
     messages_to_wait = [bot.send_message(
         chat_id=admin,
-        text=message
+        text=message,
+        reply_markup=keyboard
     ) for admin in consts.ADMINS]
-    await asyncio.gather(*messages_to_wait)
+    messages = await asyncio.gather(*messages_to_wait)
+    return [m.message_id for m in messages]
+
+
+async def send_to_operator(message: str, bot: Bot, keyboard: InlineKeyboardMarkup = None) -> List[int]:
+    messages_to_wait = [bot.send_message(
+        chat_id=operator,
+        text=message,
+        reply_markup=keyboard
+    ) for operator in consts.OPERATORS]
+    messages = await asyncio.gather(*messages_to_wait)
+    return [m.message_id for m in messages]
+
+
+async def ask_req_approval(request: Dict[str, Any], bot: Bot):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("אשר", callback_data=f"reqA_{consts.APPROVAL.APPROVE}_{request['_id']}")
+        ],
+        [
+            InlineKeyboardButton("דחה", callback_data=f"reqA_{consts.APPROVAL.REJECT}_{request['_id']}")
+        ]
+    ])
+    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in request['supply'].items() if value != 0])
+
+    ids = await send_to_operator(
+        f"צריך להחליט האם לאשר או לבטל את הבקשה:\n"
+        f"id: {request['_id']}\n"
+        f"name: {request['name']}\n"
+        f"phone: {request['phone']}\n"
+        f"location: {request['location']['address']}\n"
+        f"supply: \n{supply_as_text}",
+        bot,
+        keyboard
+    )
+    await Database().send_req_approval_message(request['_id'], consts.OPERATORS, ids)
+
+
+async def approve_req(request: Dict[str, Any], approve_operator: int, bot: Bot, approval: consts.APPROVAL):
+    # set approve in database
+    await Database().approve_req(request['_id'], approval)
+
+    # delete the messages for all the optional approvals
+    for i in request["approval_messages"]:
+        await bot.delete_message(
+            chat_id=i["chat_id"],
+            message_id=i["message_id"]
+        )
+
+    # send the data to the operator that approved
+    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in request['supply'].items() if value != 0])
+    await bot.send_message(
+        chat_id=approve_operator,
+        text=f"request\n"
+             f"{request['name']}\n"
+             f"{request['phone']}\n"
+             f"{request['location']['address']}\n"
+             f"supply: \n{supply_as_text}\n"
+             f"approved: {approval}",
+    )
+    if approval == consts.APPROVAL.APPROVE:
+        await ask_supplier(request, bot)
+
+
+async def ask_supplier_approval(user: Dict[str, Any], bot: Bot):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("אשר", callback_data=f"supA_{consts.APPROVAL.APPROVE}_{user['_id']}")
+        ],
+        [
+            InlineKeyboardButton("דחה", callback_data=f"supA_{consts.APPROVAL.REJECT}_{user['_id']}")
+        ]
+    ])
+    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in user['supply'].items() if value != 0])
+
+    ids = await send_to_admins(
+        f"צריך להחליט האם לאשר או לבטל את הספק:\n"
+        f"id: {user['_id']}\n"
+        f"name: {user['name']}\n"
+        f"phone: {user['phone']}\n"
+        f"location: {user['location']['address']}\n"
+        f"supply: \n{supply_as_text}",
+        bot,
+        keyboard
+    )
+    await Database().send_user_approval_message(user['_id'], consts.ADMINS, ids)
+
+
+async def approve_supplier(user: Dict[str, Any], approve_admin: int, bot: Bot, approval: consts.APPROVAL):
+    # set approve in database
+    await Database().approve_user(user['_id'], approval)
+
+    # delete the messages for all the optional approvals
+    for i in user["approval_messages"]:
+        await bot.delete_message(
+            chat_id=i["chat_id"],
+            message_id=i["message_id"]
+        )
+
+    # send the data to the operator that approved
+    supply_as_text = '\n'.join([f"{key}: {value}" for key, value in user['supply'].items() if value != 0])
+    await bot.send_message(
+        chat_id=approve_admin,
+        text=f"supplier\n"
+             f"{user['name']}\n"
+             f"{user['phone']}\n"
+             f"{user['location']['address']}\n"
+             f"supply: \n{supply_as_text}\n"
+             f"approved: {approval}",
+    )
+
+
+async def ask_delivery_approval(user: Dict[str, Any], bot: Bot):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("אשר", callback_data=f"delA_{consts.APPROVAL.APPROVE}_{user['_id']}")
+        ],
+        [
+            InlineKeyboardButton("דחה", callback_data=f"delA_{consts.APPROVAL.REJECT}_{user['_id']}")
+        ]
+    ])
+
+    ids = await send_to_operator(
+        f"צריך להחליט האם לאשר או לבטל את המשלוח:\n"
+        f"id: {user['_id']}\n"
+        f"name: {user['name']}\n"
+        f"phone: {user['phone']}\n"
+        f"location: {user['location']['address']}\n",
+        bot,
+        keyboard
+    )
+    await Database().send_user_approval_message(user['_id'], consts.OPERATORS, ids)
+
+
+async def approve_delivery(user: Dict[str, Any], approve_operator: int, bot: Bot, approval: consts.APPROVAL):
+    # set approve in database
+    await Database().approve_user(user['_id'], approval)
+
+    # delete the messages for all the optional approvals
+    for i in user["approval_messages"]:
+        await bot.delete_message(
+            chat_id=i["chat_id"],
+            message_id=i["message_id"]
+        )
+
+    # send the data to the operator that approved
+    await bot.send_message(
+        chat_id=approve_operator,
+        text=f"delivery\n"
+             f"{user['name']}\n"
+             f"{user['phone']}\n"
+             f"{user['location']['address']}\n"
+             f"approved: {approval}",
+    )

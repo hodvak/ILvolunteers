@@ -76,7 +76,7 @@ async def distance_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
     set_cars(context.user_data)
     keyboard = create_cars_keyboard(context.user_data, "licence")
     await update.message.reply_text(
-        "איזה רישיון נהיגה יש לך?\n"
+        "איזה **רישיון נהיגה** יש לך?\n"
         "לחיצה על הכפתור תשנה בין \"אין לי\" ל\"יש לי\"\n"
         "בסיום לחצו על כפתור \"סיימתי\""
         , reply_markup=keyboard
@@ -92,7 +92,7 @@ async def licence_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if licence == "done":
         keyboard = create_cars_keyboard(context.user_data, "own")
         await query.message.edit_text(
-            "איזה רכבים יש לך?\n"
+            "איזה **רכבים** יש לך?\n"
             "לחיצה על הכפתור תשנה בין \"אין לי\" ל\"יש לי\"\n"
             "בסיום לחצו על כפתור \"סיימתי\""
             , reply_markup=keyboard
@@ -101,7 +101,7 @@ async def licence_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["licence"][licence] = not context.user_data["licence"][licence]
     keyboard = create_cars_keyboard(context.user_data, "licence")
     await query.message.edit_text(
-        "איזה רישיון נהיגה יש לך?\n"
+        "איזה **רישיון נהיגה** יש לך?\n"
         "לחיצה על הכפתור תשנה בין \"אין לי\" ל\"יש לי\"\n"
         "בסיום לחצו על כפתור \"סיימתי\""
         , reply_markup=keyboard
@@ -119,12 +119,13 @@ async def vehicle_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "תודה רבה, כאשר יהיה משהו שאנחנו מאמינים שתוכל לעזור בו ניצור איתך קשר שוב!"
         )
         await Database().add_user(context.user_data)
+        await algorithms.ask_delivery_approval(context.user_data, context.bot)
         return ConversationHandler.END
 
     context.user_data["own"][vehicle] = not context.user_data["own"][vehicle]
     keyboard = create_cars_keyboard(context.user_data, "own")
     await query.message.edit_text(
-        "איזה רכבים יש לך?\n"
+        "איזה **רכבים** יש לך?\n"
         "לחיצה על הכפתור תשנה בין \"אין לי\" ל\"יש לי\"\n"
         "בסיום לחצו על כפתור \"סיימתי\""
         , reply_markup=keyboard

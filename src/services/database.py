@@ -7,6 +7,8 @@ from typing import Optional, AsyncIterable, List, Dict
 import motor.motor_asyncio as motor
 from bson import ObjectId
 from pymongo.errors import ConnectionFailure
+
+from telegram_bot import consts
 from user import Type, Supply, Status
 
 HOST = environ.get('MONGO_URL') or 'mongodb://localhost:27017'
@@ -32,6 +34,10 @@ class Database:
         :return: None
         """
         print(user_data)
+        user_data['time'] = datetime.now(timezone.utc)
+        if 'approved' not in user_data:
+            user_data['approved'] = consts.APPROVAL.PENDING
+        user_data['approval_messages'] = []
         # check if exists by the user_data['telegram_data.chat_id']['chat_id']
         # user = await self.db.users.find_one({'telegram_data.chat_id': user_data['telegram_data']['chat_id']})
         # if user:
@@ -47,6 +53,8 @@ class Database:
     async def add_request(self, user_data) -> ObjectId:
         user_data['time'] = datetime.now(timezone.utc)
 
+        if 'approved' not in user_data:
+            user_data['approved'] = consts.APPROVAL.PENDING
         user_data['supplier'] = None
         user_data['delivery'] = None
         user_data['helper'] = []
@@ -54,6 +62,7 @@ class Database:
         user_data['supplier_messages'] = []
         user_data['delivery_messages'] = []
         user_data['helper_messages'] = []
+        user_data['admin_approval_messages'] = []
 
         user_data['status'] = Status.PENDING_SUPPLIER
         ans = await self.db.requests.insert_one(user_data)
@@ -132,12 +141,15 @@ class Database:
             if name != 'אחר':
                 supply_dict['supply.' + name] = {'$gte': amount}
 
-        my_filter = {'type': Type.SUPPLIER.value, **supply_dict}
+        my_filter = {'type': Type.SUPPLIER.value,
+                     'approved': consts.APPROVAL.APPROVE.value,
+                     **supply_dict}
+
         supplier = await self.db.users.find(my_filter).to_list(length=None)
         return supplier
 
     async def get_delivery(self):
-        return await self.db.users.find({'type': Type.DELIVER.value}).to_list(length=None)
+        return await self.db.users.find({'type': Type.DELIVER.value, 'approved': consts.APPROVAL.APPROVE.value}).to_list(length=None)
 
     async def get_request(self, request_id: ObjectId):
         return await self.db.requests.find_one({'_id': request_id})
@@ -149,3 +161,49 @@ class Database:
 
     async def get_user(self, chat_id):
         return await self.db.users.find_one({'telegram_data.chat_id': chat_id})
+
+    async def send_req_approval_message(self, req_id: ObjectId, chat_ids: List[int], message_ids: List[int]) -> None:
+        """
+        save the message ids of the approval message that was sent to the admins/operators
+        :param req_id: the request id
+        :param chat_ids: the chat ids of the admins/operators
+        :param message_ids: the message ids of the approval message
+        :return: None
+        """
+        data = [{'chat_id': chat_id, 'message_id': message_id}
+                for chat_id, message_id in
+                zip(chat_ids, message_ids)]
+        await self.db.requests.update_one({'_id': req_id},
+                                          {'$set': {'approval_messages': data}})
+
+    async def approve_req(self, req_id: ObjectId, approved: consts.APPROVAL) -> None:
+        """
+        approve a request
+        :param req_id: the request id
+        :param approved: the approval status
+        :return: None
+        """
+        await self.db.requests.update_one({'_id': req_id}, {'$set': {'approved': approved}})
+
+    async def send_user_approval_message(self, user_id: ObjectId, chat_ids: List[int], message_ids: List[int]) -> None:
+        """
+        save the message ids of the approval message that was sent to the admins/operators
+        :param user_id:
+        :param chat_ids:
+        :param message_ids:
+        :return:
+        """
+        data = [{'chat_id': chat_id, 'message_id': message_id}
+                for chat_id, message_id in
+                zip(chat_ids, message_ids)]
+        await self.db.users.update_one({'_id': user_id},
+                                       {'$set': {'approval_messages': data}})
+
+    async def approve_user(self, user_id: ObjectId, approved: consts.APPROVAL) -> None:
+        """
+        approve a user
+        :param user_id: the user id
+        :param approved: the approval status
+        :return: None
+        """
+        await self.db.users.update_one({'_id': user_id}, {'$set': {'approved': approved}})

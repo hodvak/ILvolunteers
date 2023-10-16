@@ -5,6 +5,12 @@ from enum import Enum, auto
 from typing import List, Optional, Callable, Dict
 
 
+class APPROVAL(str, Enum):
+    PENDING = "pending"
+    APPROVE = "approve"
+    REJECT = "reject"
+
+
 class Convo(Enum):
     # ALL
     START = auto()
@@ -45,3 +51,11 @@ with open("admins.txt", "r") as f:
         if line[0] == "#":
             continue
         ADMINS.append(int(line.strip()))
+
+OPERATORS = []
+with open("operators.txt", "r") as f:
+    for line in f:
+        line = line.strip()
+        if line[0] == "#":
+            continue
+        OPERATORS.append(int(line.strip()))

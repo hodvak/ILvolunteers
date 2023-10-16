@@ -10,7 +10,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
     CallbackQueryHandler
 
 from user import Type, Supply
-from telegram_bot import consts, all, supplier, deliver, requester
+from telegram_bot import consts, all, supplier, deliver, requester, admins
 
 TOKEN = os.environ.get("TOKEN")
 
@@ -65,6 +65,10 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(pattern=r"^sd?_", callback=supplier.supplier_res))
     application.add_handler(CallbackQueryHandler(pattern=r"^d_", callback=deliver.deliver_res))
     application.add_handler(CallbackQueryHandler(pattern=r"^v_", callback=deliver.volunteer_res))
+
+    application.add_handler(CallbackQueryHandler(pattern=r"^reqA_", callback=admins.approve_req))
+    application.add_handler(CallbackQueryHandler(pattern=r"^supA_", callback=admins.approve_supplier))
+    application.add_handler(CallbackQueryHandler(pattern=r"^delA_", callback=admins.approve_delivery))
     # application.add_handler(MessageHandler(filters=filters.LOCATION, callback=loc_handler))
 
     # application.add_handler(CommandHandler("help", help_command))

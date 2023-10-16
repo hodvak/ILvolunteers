@@ -105,6 +105,8 @@ async def supply_distance_conv_func(update: Update, context: ContextTypes.DEFAUL
     )
     context.user_data["start_supply"] = context.user_data["supply"]
     await Database().add_user(context.user_data)
+    await algorithms.ask_supplier_approval(context.user_data,
+                                           context.bot)
     return ConversationHandler.END
 
 

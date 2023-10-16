@@ -164,29 +164,27 @@ async def end_date_conv_func(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "אנחנו כבר מנסים לארגן לכם את הדדברים, נעדכן כאשר נמצא"
     )
     if context.user_data["supply"]["אחר"]:
-        for admin in consts.ADMINS:
-            context.bot.sendMessage(
-                chat_id=admin,
-                text=f"הגיעה בקשה חדשה מאחד המשתמשים:\n"
-                     f"שם: {context.user_data['name']}\n"
-                     f"טלפון: {context.user_data['phone']}\n"
-                     f"כתובת: {context.user_data['location']['address']}\n"
-                     f" ציוד: {context.user_data['supply']['אחר']}\n"
-            )
+        await algorithms.send_to_admins(
+            f"הגיעה בקשה חדשה מאחד המשתמשים:\n"
+            f"שם: {context.user_data['name']}\n"
+            f"טלפון: {context.user_data['phone']}\n"
+            f"כתובת: {context.user_data['location']['address']}\n"
+            f" ציוד: {context.user_data['supply']['אחר']}\n",
+            context.bot
+        )
     del context.user_data["supply"]["אחר"]
+
+    chat_id = update.message.chat_id
+    is_from_admin = (chat_id in consts.ADMINS or chat_id in consts.OPERATORS)
+    if is_from_admin:
+        context.user_data["approved"] = consts.APPROVAL.APPROVE
+    else:
+        context.user_data["approved"] = consts.APPROVAL.PENDING
 
     req_id = await Database().add_request(context.user_data)
     context.user_data["_id"] = req_id
-    supply_as_text = "\n".join([f"{key} : {value}" for key, value in context.user_data["supply"].items() if value != 0])
-    b = await algorithms.ask_supplier(context.user_data, context.bot)
-    if not b:
-        for admin in consts.ADMINS:
-            await context.bot.sendMessage(
-                chat_id=admin,
-                text=f"לא הצלחנו למצוא ספקים לבקשה הבאה:\n"
-                     f"שם: {context.user_data['name']}\n"
-                     f"טלפון: {context.user_data['phone']}\n"
-                     f"כתובת: {context.user_data['location']['address']}\n"
-                     f" ציוד\n: {supply_as_text}\n"
-            )
+    if is_from_admin:
+        await algorithms.ask_supplier(context.user_data, context.bot)
+    else:
+        await algorithms.ask_req_approval(context.user_data, context.bot)
     return ConversationHandler.END
